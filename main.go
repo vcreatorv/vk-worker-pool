@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/google/uuid"
+	"log"
 	"os"
 	"os/signal"
 	"strconv"
@@ -27,14 +28,14 @@ func (w *Worker) Start() {
 		for {
 			select {
 			case <-w.stop:
-				fmt.Printf("Worker[%s] stopped\n", w.id)
+				log.Printf("Worker[%s] stopped\n", w.id)
 				return
 			case msg, ok := <-w.src:
 				if !ok {
-					fmt.Printf("Worker[%s]: src closed\n", w.id)
+					log.Printf("Worker[%s]: src closed\n", w.id)
 					return
 				}
-				fmt.Printf("Worker[%s] received message: %s]\n", w.id, msg)
+				log.Printf("Worker[%s] received message: %s]\n", w.id, msg)
 			}
 		}
 	}()
@@ -63,7 +64,7 @@ func (wm *WorkerManager) AddWorker(src chan string, wg *sync.WaitGroup) *Worker 
 		wg:   wg,
 	}
 	wm.workers[id] = worker
-	fmt.Printf("Add worker[%s]\n", worker.id)
+	log.Printf("Add worker[%s]\n", worker.id)
 	return worker
 }
 
@@ -71,7 +72,7 @@ func (wm *WorkerManager) DeleteWorker(id uuid.UUID) {
 	wm.mutex.Lock()
 	defer wm.mutex.Unlock()
 	if worker, ok := wm.workers[id]; ok {
-		fmt.Printf("Delete worker[%s]\n", worker.id)
+		log.Printf("Delete worker[%s]\n", worker.id)
 		worker.stop <- true
 		delete(wm.workers, id)
 	}
@@ -89,7 +90,7 @@ func main() {
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM, syscall.SIGINT)
 	go func() {
 		<-sigChan
-		fmt.Println("\nReceived shutdown signal")
+		log.Println("\nReceived shutdown signal")
 		cancel()
 	}()
 
@@ -125,20 +126,20 @@ func main() {
 			}
 		case "delete":
 			if len(parts) < 2 {
-				fmt.Println("Please specify worker ID")
+				log.Println("Please specify worker ID")
 				continue
 			}
 			id, err := uuid.Parse(parts[1])
 			if err != nil {
-				fmt.Println("Invalid worker ID format")
+				log.Println("Invalid worker ID format")
 				continue
 			}
 			wm.DeleteWorker(id)
 
 		case "list":
-			fmt.Printf("Active workers (%d):\n", len(wm.workers))
+			log.Printf("Active workers (%d):\n", len(wm.workers))
 			for id := range wm.workers {
-				fmt.Println(id)
+				log.Println(id)
 			}
 
 		case "exit":
@@ -147,7 +148,7 @@ func main() {
 
 		default:
 			if len(wm.workers) == 0 {
-				fmt.Println("No alive workers. Add at least one")
+				log.Println("No alive workers. Add at least one")
 				continue
 			}
 			source <- input
@@ -160,5 +161,5 @@ func main() {
 	}
 	close(source)
 	wg.Wait()
-	fmt.Println("All workers stopped. Exiting...")
+	log.Println("All workers stopped. Exiting...")
 }
